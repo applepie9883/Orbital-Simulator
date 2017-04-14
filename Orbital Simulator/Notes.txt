@@ -1,0 +1,4 @@
+﻿
+Port this to my ECS Library, and remove all references to the old SpriteLibrary.
+
+Figure out threading with the ECS Library

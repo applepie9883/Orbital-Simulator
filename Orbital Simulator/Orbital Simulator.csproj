@@ -64,16 +64,22 @@
   <ItemGroup>
     <Compile Include="OptionsData.cs" />
     <Compile Include="OrbitalSimulator.cs" />
+    <Compile Include="Orbiter.cs" />
+    <Compile Include="OrbiterSystem.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icon.ico" />
+    <Content Include="Notes.txt" />
   </ItemGroup>
   <ItemGroup>
     <MonoGameContentReference Include="Content\Content.mgcb" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="GM.ECSLibrary">
+      <HintPath>..\..\Libraries\ECSLibrary\ECSLibrary\bin\Release\GM.ECSLibrary.dll</HintPath>
+    </Reference>
     <Reference Include="GM.SpriteLibrary">
       <HintPath>..\..\GMLibraries\SpriteLibrary\bin\Release\GM.SpriteLibrary.dll</HintPath>
       <Private>True</Private>

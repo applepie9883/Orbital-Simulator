@@ -1,11 +1,16 @@
-﻿using GM.SpriteLibrary;
+﻿using GM.ECSLibrary;
+using GM.ECSLibrary.Components;
+using GM.ECSLibrary.Systems;
+using GM.SpriteLibrary;
 using GM.SpriteLibrary.UI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 
 namespace Orbital_Simulator
 {
@@ -36,9 +41,13 @@ namespace Orbital_Simulator
 
         List<double> previousFramesPerSecond;
 
-        Random randomNumberGenerator;
+        List<Entity> tmpNameorbiters;
 
-        List<MoveableSprite> orbiters;
+        SystemsManager manager;
+
+        Thread[] threads;
+
+        ManualResetEvent[] resEvents;
 
         MouseState currentMouseState;
         MouseState oldMouseState;
@@ -65,6 +74,22 @@ namespace Orbital_Simulator
         /// </summary>
         protected override void Initialize()
         {
+            /*
+            threads = new Thread[8];
+
+            for (int i = 0; i < threads.Length; i++)
+            {
+                threads[i] = new Thread(UpdatePlayingThreaded);
+            }
+
+            resEvents = new ManualResetEvent[8];
+
+            for (int i = 0; i < resEvents.Length; i++)
+            {
+                resEvents[i] = new ManualResetEvent(false);
+            }
+            */
+
             gameOptions = OptionsData.LoadDataFromFile("options.xml");
 
             if (gameOptions == null)
@@ -78,30 +103,35 @@ namespace Orbital_Simulator
 
             previousFramesPerSecond = new List<double>();
 
-            randomNumberGenerator = new Random();
 
             base.Initialize();
+
+
+            manager = new SystemsManager(GraphicsDevice, spriteBatch);
+            manager.AddSystem(new OrbiterSystem());
+            manager.AddSystem(new VelocitySystem());
+            manager.AddSystem(new DrawingSystem());
         }
 
         private void InitializeGame()
         {
-            orbiters = new List<MoveableSprite>(gameOptions.OrbiterCount);
+            Random rndGen = new Random();
 
-            MoveableSprite defaultOrbiter = new MoveableSprite();
-            defaultOrbiter.GenerateTexture(GraphicsDevice, gameOptions.OrbiterWidth, gameOptions.OrbiterHeight, gameOptions.OrbiterColor);
+            tmpNameorbiters = new List<Entity>();
+
+            Texture2D orbiterTexture = new Texture2D(GraphicsDevice, gameOptions.OrbiterWidth, gameOptions.OrbiterHeight, false, SurfaceFormat.Color);
+            orbiterTexture.SetData(Enumerable.Range(0, gameOptions.OrbiterWidth * gameOptions.OrbiterHeight).Select(i => gameOptions.OrbiterColor).ToArray());
 
             for (int i = 0; i < gameOptions.OrbiterCount; i++)
             {
-                MoveableSprite newOrbiter = new MoveableSprite();
+                Orbiter newOrbiter = new Orbiter();
 
-                newOrbiter.SetPosition(new Vector2(randomNumberGenerator.Next(0, GraphicsDevice.Viewport.Width),
-                                                    randomNumberGenerator.Next(0, GraphicsDevice.Viewport.Height)));
-                
-                newOrbiter.SetTexture(defaultOrbiter.GetTexture());
+                newOrbiter.GetComponent<PositionComponent>().PositionOffset = new Vector2(gameOptions.OrbiterWidth / 2, gameOptions.OrbiterHeight / 2);
+                newOrbiter.GetComponent<PositionComponent>().Position = new Vector2(rndGen.Next(0, GraphicsDevice.Viewport.Width), rndGen.Next(0, GraphicsDevice.Viewport.Height));
 
-                newOrbiter.SetOrigin(newOrbiter.GetCenter());
+                newOrbiter.GetComponent<SpriteComponent>().Texture = orbiterTexture;
 
-                orbiters.Add(newOrbiter);
+                tmpNameorbiters.Add(newOrbiter);
             }
         }
 
@@ -122,9 +152,11 @@ namespace Orbital_Simulator
 
         private void InitializeMainMenuPanel()
         {
-            menuPanel = new Panel(GraphicsDevice, new Vector2(10, 200));
-            menuPanel.DefaultControlFont = aFont;
-            menuPanel.DefaultControlColor = Color.Black;
+            menuPanel = new Panel(GraphicsDevice, new Vector2(10, 200))
+            {
+                DefaultControlFont = aFont,
+                DefaultControlColor = Color.Black
+            };
 
             // Play button
             Button playButton = new Button("Play", Color.White);
@@ -139,22 +171,26 @@ namespace Orbital_Simulator
             optionsButton.OnLeftClickInsideEnd += (object sender, EventArgs e) => { currentScreen = GameScreen.Options; };
 
             // Tests
-            TextBox testBox = new TextBox(false, Color.White);
-            testBox.Width = 800;
-            testBox.Height = 30;
+            TextBox testBox = new TextBox(false, Color.White)
+            {
+                Width = 800,
+                Height = 30
+            };
             testBox.SetText("357.89");
 
             menuPanel.Add(playButton, "playButton");
             menuPanel.Add(optionsButton, "optionsButton");
 
             // Tests
-            menuPanel.Add(testBox, "testBox");
+            //menuPanel.Add(testBox, "testBox");
         }
 
         private void InitializeOptionsPanel()
         {
-            optionsPanel = new Panel(GraphicsDevice, new Vector2(10, 200));
-            optionsPanel.DefaultControlFont = aFont;
+            optionsPanel = new Panel(GraphicsDevice, new Vector2(10, 200))
+            {
+                DefaultControlFont = aFont
+            };
 
             // Main manu button
             Button mainMenuButton = new Button("Main Menu", Color.White);
@@ -300,70 +336,134 @@ namespace Orbital_Simulator
 
         private void UpdatePlaying(GameTime gameTime)
         {
+            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || (currentKeyboardState.IsKeyDown(Keys.Escape) && oldKeyboardState.IsKeyUp(Keys.Escape)))
+            {
+                StopGame();
+                return;
+            }
+
+            if (currentKeyboardState.IsKeyDown(Keys.Space) && oldKeyboardState.IsKeyUp(Keys.Space))
+            {
+                currentScreen = GameScreen.Paused;
+                return;
+            }
+
+            manager.Update(tmpNameorbiters);
+
+            /*
+            int usedIndexes = 0;
+            int orbitersPerThread = gameOptions.OrbiterCount / threads.Length;
+            for (int i = 0; i < threads.Length; i++)
+            {
+                if (i == threads.Length - 1)
+                {
+                    //threads[i].Start(new ThreadItems(gameTime, usedIndexes, gameOptions.OrbiterCount - usedIndexes - 1));
+                    ThreadPool.QueueUserWorkItem(UpdatePlayingThreaded, new ThreadItems(gameTime, usedIndexes, gameOptions.OrbiterCount - usedIndexes - 1));
+                }
+
+                usedIndexes += orbitersPerThread;
+                //threads[i].Start(new ThreadItems(gameTime, i * orbitersPerThread, i * orbitersPerThread + orbitersPerThread - 1));
+                ThreadPool.QueueUserWorkItem(UpdatePlayingThreaded, new ThreadItems(gameTime, i * orbitersPerThread, i * orbitersPerThread + orbitersPerThread - 1));
+            }
+
+            for (int i = 0; i < threads.Length; i++)
+            {
+                //threads[i].Join();
+            }
+
+            foreach (var handle in resEvents)
+                handle.WaitOne();
+            */
+        }
+
+        /*
+        private void UpdatePlayingThreaded(object stuff)
+        {
+            Random rndGen1 = new Random();
+
+            ThreadItems items = (ThreadItems)stuff;
+            GameTime gameTime = items.TheGameTime;
+            int startIndex = items.StartIndex;
+            int endIndex = items.EndIndex;
+
+            int orbitersPerThread = gameOptions.OrbiterCount / threads.Length;
+
+            int resEventIndex = startIndex / orbitersPerThread;
+
+            resEvents[resEventIndex].Reset();
+
             // If the game window is the current active window
             if (IsActive)
             {
                 if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || (currentKeyboardState.IsKeyDown(Keys.Escape) && oldKeyboardState.IsKeyUp(Keys.Escape)))
                 {
                     StopGame();
+                    resEvents[resEventIndex].Set();
+                    return;
                 }
 
                 if (currentKeyboardState.IsKeyDown(Keys.Space) && oldKeyboardState.IsKeyUp(Keys.Space))
                 {
                     currentScreen = GameScreen.Paused;
+                    resEvents[resEventIndex].Set();
+                    return;
                 }
-                else
-                {
-                    DoBuddySystem();
 
-                    foreach (MoveableSprite orbiter in orbiters)
+                //DoBuddySystem();
+
+                for (int i = startIndex; i <= endIndex; i++)
+                {
+                    MoveableSprite orbiter = orbiters[i];
+
+                    if (currentMouseState.LeftButton == ButtonState.Pressed)
                     {
-                        if (currentMouseState.LeftButton == ButtonState.Pressed)
+                        if (Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()) < 20)
                         {
-                            if (Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()) < 20)
-                            {
-                                orbiter.SetVelocity(Vector2.Zero);
-                            }
-                            else
-                            {
-                                orbiter.SetSpeedAndDirection(Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()) / 3, currentMouseState.Position.ToVector2());
-                            }
-                        }
-                        else if (currentMouseState.RightButton == ButtonState.Pressed)
-                        {
-                            orbiter.Accelerate(randomNumberGenerator.NextDouble() * 3, randomNumberGenerator.NextDouble() * 360);
+                            orbiter.SetVelocity(Vector2.Zero);
                         }
                         else
                         {
-                            if (oldMouseState.Position.Equals(currentMouseState.Position))
-                            {
-                                orbiter.Accelerate(-(orbiter.GetVelocity().Length() / 50), orbiter.GetDirectionAngle());
-                            }
-
-                            if (gameOptions.OrbiterOrbiter)
-                            {
-                                foreach (var j in orbiters)
-                                {
-                                    if (orbiter == j)
-                                    {
-                                        continue;
-                                    }
-
-                                    orbiter.Accelerate(0.05, j.GetPosition());
-                                }
-                            }
-
-                            orbiter.Accelerate(0.5, currentMouseState.Position.ToVector2());
-                            //orbiter.Accelerate(3 / Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()), currentMouseState.Position.ToVector2());
-                            //orbiter.Accelerate(Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()) / 100, currentMouseState.Position.ToVector2());
+                            orbiter.SetSpeedAndDirection(Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()) / 3, currentMouseState.Position.ToVector2());
+                        }
+                    }
+                    else if (currentMouseState.RightButton == ButtonState.Pressed)
+                    {
+                        orbiter.Accelerate(rndGen1.NextDouble() * 3, rndGen1.NextDouble() * 360);
+                    }
+                    else
+                    {
+                        // Slow the orbiter down (by 2%??) if the mouse hasn't moved since the last update
+                        if (oldMouseState.Position.Equals(currentMouseState.Position))
+                        {
+                            orbiter.Accelerate(-(orbiter.GetVelocity().Length() / 50), orbiter.GetDirectionAngle());
                         }
 
-                        orbiter.MoveWithVelocity();
+                        // Massive lag box here
+                        if (gameOptions.OrbiterOrbiter)
+                        {
+                            foreach (var j in orbiters)
+                            {
+                                if (orbiter == j)
+                                {
+                                    continue;
+                                }
 
-                        orbiter.KeepWithin(new Rectangle(0, 0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height));
+                                orbiter.Accelerate(0.05, j.GetPosition());
+                            }
+                        }
+
+                        orbiter.Accelerate(0.5, currentMouseState.Position.ToVector2());
+                        //orbiter.Accelerate(3 / Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()), currentMouseState.Position.ToVector2());
+                        //orbiter.Accelerate(Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()) / 100, currentMouseState.Position.ToVector2());
                     }
+
+                    orbiter.MoveWithVelocity();
+
+                    orbiter.KeepWithin(new Rectangle(0, 0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height));
                 }
             }
+
+            resEvents[resEventIndex].Set();
         }
 
         private void DoBuddySystem()
@@ -400,6 +500,7 @@ namespace Orbital_Simulator
                 }
             }
         }
+        */
 
         private void UpdatePaused()
         {
@@ -428,6 +529,11 @@ namespace Orbital_Simulator
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
+            if (currentScreen == GameScreen.Playing || currentScreen == GameScreen.Paused)
+            {
+                manager.Draw(tmpNameorbiters);
+            }
+
             spriteBatch.Begin();
 
             if (currentScreen == GameScreen.MainMenu)
@@ -440,10 +546,10 @@ namespace Orbital_Simulator
             }
             else if (currentScreen == GameScreen.Playing || currentScreen == GameScreen.Paused)
             {
-                foreach (MoveableSprite orbiter in orbiters)
-                {
-                    orbiter.Draw(spriteBatch);
-                }
+                //foreach (MoveableSprite orbiter in orbiters)
+                //{
+                //    orbiter.Draw(spriteBatch);
+                //}
             }
 
             if (previousFramesPerSecond.Count >= 10)
@@ -462,5 +568,21 @@ namespace Orbital_Simulator
 
             base.Draw(gameTime);
         }
+    }
+}
+
+public class ThreadItems
+{
+    public GameTime TheGameTime { get; set; }
+
+    public int StartIndex { get; set; }
+
+    public int EndIndex { get; set; }
+
+    public ThreadItems(GameTime theTime, int start, int end)
+    {
+        TheGameTime = theTime;
+        StartIndex = start;
+        EndIndex = end;
     }
 }
