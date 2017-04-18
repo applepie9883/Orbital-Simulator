@@ -2,3 +2,9 @@
 Port this to my ECS Library, and remove all references to the old SpriteLibrary.
 
 Figure out threading with the ECS Library
+
+Just call SystemsManager.Update(Entity list) on multiple different threads at once
+
+Profiling: With entity library, draw takes about 10 ms, update takes about 15 ms, this is with 20000 orbiters and all 3 systems active
+Removing the velocity system and putting the code for that in the orbiter system moves the update time down to 10 ms
+checking for the correct components takes 70 - 80% as much time as updating??? component checks are taking about 40 - 45% of update time.

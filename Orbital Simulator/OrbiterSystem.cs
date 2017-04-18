@@ -87,24 +87,6 @@ namespace Orbital_Simulator
 
             // TODO: Possible get this code working (if not here then somewhere else)
             //orbiter.KeepWithin(new Rectangle(0, 0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height));
-
-
-
-
-            // TODO: This code needs to be moved into the main update method in the game class
-            /*
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || (currentKeyboardState.IsKeyDown(Keys.Escape) && oldKeyboardState.IsKeyUp(Keys.Escape)))
-            {
-                StopGame();
-                return;
-            }
-
-            if (currentKeyboardState.IsKeyDown(Keys.Space) && oldKeyboardState.IsKeyUp(Keys.Space))
-            {
-                currentScreen = GameScreen.Paused;
-                return;
-            }
-            */
         }
     }
 }

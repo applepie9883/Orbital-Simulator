@@ -41,7 +41,7 @@ namespace Orbital_Simulator
 
         List<double> previousFramesPerSecond;
 
-        List<Entity> tmpNameorbiters;
+        List<Entity> orbiters;
 
         SystemsManager manager;
 
@@ -117,7 +117,7 @@ namespace Orbital_Simulator
         {
             Random rndGen = new Random();
 
-            tmpNameorbiters = new List<Entity>();
+            orbiters = new List<Entity>();
 
             Texture2D orbiterTexture = new Texture2D(GraphicsDevice, gameOptions.OrbiterWidth, gameOptions.OrbiterHeight, false, SurfaceFormat.Color);
             orbiterTexture.SetData(Enumerable.Range(0, gameOptions.OrbiterWidth * gameOptions.OrbiterHeight).Select(i => gameOptions.OrbiterColor).ToArray());
@@ -131,7 +131,7 @@ namespace Orbital_Simulator
 
                 newOrbiter.GetComponent<SpriteComponent>().Texture = orbiterTexture;
 
-                tmpNameorbiters.Add(newOrbiter);
+                orbiters.Add(newOrbiter);
             }
         }
 
@@ -348,7 +348,7 @@ namespace Orbital_Simulator
                 return;
             }
 
-            manager.Update(tmpNameorbiters);
+            manager.Update(orbiters);
 
             /*
             int usedIndexes = 0;
@@ -531,7 +531,7 @@ namespace Orbital_Simulator
 
             if (currentScreen == GameScreen.Playing || currentScreen == GameScreen.Paused)
             {
-                manager.Draw(tmpNameorbiters);
+                manager.Draw(orbiters);
             }
 
             spriteBatch.Begin();
@@ -543,13 +543,6 @@ namespace Orbital_Simulator
             else if (currentScreen == GameScreen.Options)
             {
                 optionsPanel.Draw(spriteBatch);
-            }
-            else if (currentScreen == GameScreen.Playing || currentScreen == GameScreen.Paused)
-            {
-                //foreach (MoveableSprite orbiter in orbiters)
-                //{
-                //    orbiter.Draw(spriteBatch);
-                //}
             }
 
             if (previousFramesPerSecond.Count >= 10)
