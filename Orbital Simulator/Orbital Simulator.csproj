@@ -77,8 +77,9 @@
     <MonoGameContentReference Include="Content\Content.mgcb" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="GM.ECSLibrary">
-      <HintPath>..\..\Libraries\ECSLibrary\ECSLibrary\bin\Release\GM.ECSLibrary.dll</HintPath>
+    <Reference Include="GM.ECSLibrary, Version=1.0.2.12, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\dlls\GM.ECSLibrary.dll</HintPath>
     </Reference>
     <Reference Include="GM.SpriteLibrary">
       <HintPath>..\..\GMLibraries\SpriteLibrary\bin\Release\GM.SpriteLibrary.dll</HintPath>

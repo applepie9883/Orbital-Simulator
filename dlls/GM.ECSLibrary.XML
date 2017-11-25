@@ -1,0 +1,254 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>GM.ECSLibrary</name>
+    </assembly>
+    <members>
+        <member name="T:GM.ECSLibrary.Components.ComponentBase">
+            <summary>
+            The abstract base class that every component must inherit from.
+            </summary>
+        </member>
+        <member name="T:GM.ECSLibrary.Components.SpriteComponent">
+            <summary>
+            Component containing the data required to draw a simple 2d image to the screen.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Components.SpriteComponent.Texture">
+            <summary>
+            The texture used to draw the sprite.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Components.SpriteComponent.Origin">
+            <summary>
+            The origin of rotation of the sprite.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Components.SpriteComponent.Scale">
+            <summary>
+            The scale of the sprite.
+            </summary>
+            <example>
+            (1, 1) is original size, (2, 2) is double both height and width.
+            </example>
+        </member>
+        <member name="P:GM.ECSLibrary.Components.SpriteComponent.RotationAngle">
+            <summary>
+            The rotation angle of the sprite, in degrees.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Components.SpriteComponent.LayerDepth">
+            <summary>
+            The layer to draw the sprite on, with 0 being the back most layer, and 1 being the front most layer.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Components.SpriteComponent.Transparency">
+            <summary>
+            The transparency of the sprite, from 0.0f (fully transparent) to 1.0f (fully opaque).
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Components.SpriteComponent.SpriteColor">
+            <summary>
+            The color to draw on any of the white parts of the sprite.
+            </summary>
+        </member>
+        <member name="M:GM.ECSLibrary.Components.SpriteComponent.#ctor">
+            <summary>
+            Default constructor, initializes all properties to default values. This does not generate a texture for the sprite.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Components.PositionComponent.PositionOffset">
+            <summary>
+            Used to set the offset of Position from UpperLeft.
+            </summary>
+        </member>
+        <member name="T:GM.ECSLibrary.Entity">
+            <summary>
+            Main class for storing and managing components for use by systems.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Entity.Id">
+            <summary>
+            Unique string identifier for this entity
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Entity.Components">
+            <summary>
+            Private dictionary of components, with the component <see cref="T:System.Type"/> as the keys.
+            </summary>
+        </member>
+        <member name="M:GM.ECSLibrary.Entity.#ctor">
+            <summary>
+            Default constructor, initializes the <see cref="P:GM.ECSLibrary.Entity.Components"/> dictionary.
+            </summary>
+        </member>
+        <member name="M:GM.ECSLibrary.Entity.AddComponent(GM.ECSLibrary.Components.ComponentBase)">
+            <summary>
+            Add a component to the entity's component dictionary with the <see cref="T:System.Type"/> of the component as the key.
+            </summary>
+            <param name="component">The component to add to the dictionary.</param>
+            <exception cref="T:System.ArgumentException">Thrown when a component is added of the same <see cref="T:System.Type"/> as a component alread in the dictionary.</exception>
+        </member>
+        <member name="M:GM.ECSLibrary.Entity.GetComponent``1">
+            <summary>
+            Get a certain component from the entity.
+            </summary>
+            <typeparam name="T">The <see cref="T:System.Type"/> of the component to get from the entity. Must be a subclass of <see cref="T:GM.ECSLibrary.Components.ComponentBase"/></typeparam>
+            <returns>The requested component, or null if no component of that <see cref="T:System.Type"/> exists.</returns>
+        </member>
+        <member name="M:GM.ECSLibrary.Entity.GetComponents">
+            <summary>
+            Get the list of all components in the entity.
+            </summary>
+            <returns>The dictionary of components in the entity.</returns>
+        </member>
+        <member name="T:GM.ECSLibrary.SystemsManager">
+            <summary>
+            Class to manage a collection of <see cref="T:GM.ECSLibrary.Systems.SystemBase"/> instances.
+            </summary>
+        </member>
+        <member name="M:GM.ECSLibrary.SystemsManager.CreateRequiredComponents(System.Collections.Generic.ICollection{GM.ECSLibrary.Entity})">
+            <summary>
+            Gives every entity in the collection all of the components required for every system in the manager to run.
+            </summary>
+            <param name="entityCollection">The collection of entities to create components in.</param>
+        </member>
+        <member name="T:GM.ECSLibrary.Systems.DrawingSystem">
+            <summary>
+            System that uses position and a sprite to draw entities. Requires <see cref="T:GM.ECSLibrary.Components.PositionComponent"/> and <see cref="T:GM.ECSLibrary.Components.SpriteComponent"/>.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Systems.DrawingSystem.SystemUpdateStage">
+            <inheritdoc />
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.DrawingSystem.#ctor">
+            <summary>
+            Default constructor, adds <see cref="T:GM.ECSLibrary.Components.PositionComponent"/> and <see cref="T:GM.ECSLibrary.Components.SpriteComponent"/> to the <see cref="P:GM.ECSLibrary.Systems.SystemBase._RequiredComponents"/> list.
+            </summary>
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.DrawingSystem.OnUpdate(GM.ECSLibrary.Entity)">
+            <summary>
+            Updates the given entity, drawing it according to it's current position and sprite. See <see cref="M:GM.ECSLibrary.Systems.SystemBase.OnUpdate(GM.ECSLibrary.Entity)"/> for the base method that this overrides.
+            </summary>
+            <param name="updatingEntity">The entity to draw.</param>
+        </member>
+        <member name="T:GM.ECSLibrary.Systems.SystemBase">
+            <summary>
+            The abstract base class that every system must inherit from. For best results, use a <see cref="T:GM.ECSLibrary.SystemsManager"/> for all systems.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Systems.SystemBase.SystemUpdateStage">
+            <summary>
+            Indicates when in the update / draw cycle this system should be updated.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Systems.SystemBase._RequiredComponents">
+            <summary>
+            Protected writable version of RequiredComponents.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Systems.SystemBase.RequiredComponents">
+            <summary>
+            Read only collection containing the <see cref="T:System.Type"/> of the components required by the system for an entity to update.
+            </summary>
+            <value>
+            RequiredComponents reflects changes made to the private field <see cref="P:GM.ECSLibrary.Systems.SystemBase._RequiredComponents"/>
+            </value>
+        </member>
+        <member name="P:GM.ECSLibrary.Systems.SystemBase.AutoCreateComponents">
+            <summary>
+            Indicates whether or not the system should populate entities it is run on with the required components. Defaults to false. 
+            </summary>
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.SystemBase.#ctor">
+            <summary>
+            Default constructor, initializes <see cref="P:GM.ECSLibrary.Systems.SystemBase.RequiredComponents"/> and <see cref="P:GM.ECSLibrary.Systems.SystemBase.AutoCreateComponents"/>.
+            </summary>
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.SystemBase.Update(GM.ECSLibrary.Entity)">
+            <summary>
+            Update method for the system. Verifies that the entity can be updated by the system, then updates.
+            </summary>
+            <param name="updatingEntity">The entity for the system to run on.</param>
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.SystemBase.Update(System.Collections.Generic.ICollection{GM.ECSLibrary.Entity})">
+            <summary>
+            Update method for the system. Calls <see cref="M:GM.ECSLibrary.Systems.SystemBase.Update(GM.ECSLibrary.Entity)"/> for every entity in the collection.
+            </summary>
+            <param name="updatingEntities">The entities for the system to run on.</param>
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.SystemBase.OnUpdate(GM.ECSLibrary.Entity)">
+            <summary>
+            Called after the entity is verified to have all of the correct components by the public <see cref="M:GM.ECSLibrary.Systems.SystemBase.Update(GM.ECSLibrary.Entity)"/> method
+            </summary>
+            <param name="updatingEntity">The entity for the system to run on.</param>
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.SystemBase.HasRequiredComponents(GM.ECSLibrary.Entity)">
+            <summary>
+            Checks whether the given entity has all of the component types required by the system to run.
+            </summary>
+            <param name="checkingEntity">The entity to check.</param>
+            <returns>true if the entity has the required components, false otherwise.</returns>
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.SystemBase.CreateRequiredComponents(GM.ECSLibrary.Entity)">
+            <summary>
+            Creates any missing components in the entity that the system requires to run.
+            </summary>
+            <param name="creatingEntity">The entity to create components in.</param>
+        </member>
+        <member name="T:GM.ECSLibrary.Systems.UpdateStage">
+            <summary>
+            Enum used by systems to tell the system manager at what stage to update them.
+            </summary>
+        </member>
+        <member name="F:GM.ECSLibrary.Systems.UpdateStage.PreUpdate">
+            <summary>
+            Update just before the main Update stage. Most user input is processed in the PreUpdate stage. This is the first update in a cycle.
+            </summary>
+        </member>
+        <member name="F:GM.ECSLibrary.Systems.UpdateStage.Update">
+            <summary>
+            Main Update stage.
+            </summary>
+        </member>
+        <member name="F:GM.ECSLibrary.Systems.UpdateStage.PostUpdate">
+            <summary>
+            Update just after the main Update stage, and before the PreDraw stage.
+            </summary>
+        </member>
+        <member name="F:GM.ECSLibrary.Systems.UpdateStage.PreDraw">
+            <summary>
+            Update just before the main Draw stage, and after the PostUpdate stage.
+            </summary>
+        </member>
+        <member name="F:GM.ECSLibrary.Systems.UpdateStage.Draw">
+            <summary>
+            Main Draw stage.
+            </summary>
+        </member>
+        <member name="F:GM.ECSLibrary.Systems.UpdateStage.PostDraw">
+            <summary>
+            Update just after the main Draw stage. This is the last update in a cycle.
+            </summary>
+        </member>
+        <member name="T:GM.ECSLibrary.Systems.VelocitySystem">
+            <summary>
+            System that uses position and velocity to move entites. Requires <see cref="T:GM.ECSLibrary.Components.PositionComponent"/> and <see cref="T:GM.ECSLibrary.Components.VelocityComponent"/>.
+            </summary>
+        </member>
+        <member name="P:GM.ECSLibrary.Systems.VelocitySystem.SystemUpdateStage">
+            <inheritdoc />
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.VelocitySystem.#ctor">
+            <summary>
+            Default constructor, adds <see cref="T:GM.ECSLibrary.Components.PositionComponent"/> and <see cref="T:GM.ECSLibrary.Components.VelocityComponent"/> to the <see cref="P:GM.ECSLibrary.Systems.SystemBase._RequiredComponents"/> list.
+            </summary>
+        </member>
+        <member name="M:GM.ECSLibrary.Systems.VelocitySystem.OnUpdate(GM.ECSLibrary.Entity)">
+            <summary>
+            Updates the given entity, moving it according to it's current position and velocity. See <see cref="M:GM.ECSLibrary.Systems.SystemBase.OnUpdate(GM.ECSLibrary.Entity)"/> for the base method that this overrides.
+            </summary>
+            <param name="updatingEntity">The entity to move.</param>
+        </member>
+    </members>
+</doc>

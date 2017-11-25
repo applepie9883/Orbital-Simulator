@@ -8,3 +8,12 @@ Just call SystemsManager.Update(Entity list) on multiple different threads at on
 Profiling: With entity library, draw takes about 10 ms, update takes about 15 ms, this is with 20000 orbiters and all 3 systems active
 Removing the velocity system and putting the code for that in the orbiter system moves the update time down to 10 ms
 checking for the correct components takes 70 - 80% as much time as updating??? component checks are taking about 40 - 45% of update time.
+
+Make an option to enable / disable threading
+
+Even with threading, this is still about half as fast as the old system... I think its because every new orbiter added, it has to loop TWICE, once for the orbiter system and once for the velocity system.
+
+Add a SystemBase.UpdateFrame for updating the system ONCE every manager update, and not per entity? This would allow the system to do things that need done only once per update.
+Also think about a thread safe system base thing. Something that you could inherit from and it works like a system but is more thread safe, or maybe it is updated differently in the manager?
+
+Find a less slow way to make the random work with threading.

@@ -11,32 +11,36 @@ namespace Orbital_Simulator
     {
         public override UpdateStage SystemUpdateStage => UpdateStage.Update;
 
-        private Random rndGen = new Random();
+        private Random RndGen { get; set; }
 
         public OrbiterSystem()
         {
             _RequiredComponents.AddRange(new[] { typeof(PositionComponent), typeof(VelocityComponent) });
+
+            RndGen = new Random();
         }
 
         protected override void OnUpdate(Entity updatingEntity)
         {
             MouseState currentMouseState = ManagerCatalog.CurrentMouseState;
             MouseState oldMouseState = ManagerCatalog.OldMouseState;
-            KeyboardState currentKeyboardState = ManagerCatalog.CurrentKeyboardState;
 
             PositionComponent orbiterPosition = updatingEntity.GetComponent<PositionComponent>();
             VelocityComponent orbiterVelocity = updatingEntity.GetComponent<VelocityComponent>();
 
             Vector2 mousePosition = currentMouseState.Position.ToVector2();
 
-            float radians = (float)Math.Atan2(-(mousePosition.Y - orbiterPosition.Position.Y), (mousePosition.X - orbiterPosition.Position.X));
-            double degrees = MathHelper.ToDegrees(radians);
+            double accelerationSpeed = 0;
+            double accelerationRadians = 0;
 
-            while (degrees > 360)
-                degrees -= 360;
+            double radians = Math.Atan2(-(mousePosition.Y - orbiterPosition.Position.Y), (mousePosition.X - orbiterPosition.Position.X));
 
-            while (degrees < 0)
-                degrees += 360;
+            // 2π is equivalent to 360 degrees
+            while (radians >= 2 * Math.PI)
+                radians -= 2 * Math.PI;
+
+            while (radians < 0)
+                radians += 2 * Math.PI;
 
             if (currentMouseState.LeftButton == ButtonState.Pressed)
             {
@@ -48,19 +52,22 @@ namespace Orbital_Simulator
                 }
                 else
                 {
-                    orbiterVelocity.SetSpeedAndDirection(distanceToMouse / 3, degrees);
+                    orbiterVelocity.SetSpeedAndDirection(distanceToMouse / 3, radians);
                 }
             }
             else if (currentMouseState.RightButton == ButtonState.Pressed)
             {
-                orbiterVelocity.Accelerate(rndGen.NextDouble() * 3, rndGen.NextDouble() * 360);
+                lock (RndGen)
+                {
+                    orbiterVelocity.Accelerate(ManagerCatalog.CurrentGameTime, RndGen.NextDouble() * 3, RndGen.NextDouble() * 360);
+                }
             }
             else
             {
                 // Slow the orbiter down (by 2%??) if the mouse hasn't moved since the last update
                 if (oldMouseState.Position.Equals(currentMouseState.Position))
                 {
-                    orbiterVelocity.Accelerate(-orbiterVelocity.Speed / 50, orbiterVelocity.DirectionDegrees);
+                    orbiterVelocity.Accelerate(ManagerCatalog.CurrentGameTime, -orbiterVelocity.Speed / 50, orbiterVelocity.DirectionRadians);
                 }
 
                 // TODO: Get this working (or not)
@@ -80,10 +87,17 @@ namespace Orbital_Simulator
                 }
                 */
 
-                orbiterVelocity.Accelerate(0.5, degrees);
+                orbiterVelocity.Accelerate(ManagerCatalog.CurrentGameTime, 0.5, radians);
             }
 
-            //orbiterPosition.Position += orbiterVelocity.Velocity;
+            double elapsedMilliseconds = ManagerCatalog.CurrentGameTime.ElapsedGameTime.TotalMilliseconds;
+
+            if (elapsedMilliseconds < orbiterVelocity.MovementMilliseconds || orbiterVelocity.OverCompinsate)
+            {
+                accelerationSpeed *= (float)(elapsedMilliseconds / orbiterVelocity.MovementMilliseconds);
+            }
+
+            orbiterVelocity.Accelerate(accelerationSpeed, accelerationRadians);
 
             // TODO: Possible get this code working (if not here then somewhere else)
             //orbiter.KeepWithin(new Rectangle(0, 0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height));

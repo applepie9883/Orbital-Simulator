@@ -1,14 +1,12 @@
 ﻿using GM.ECSLibrary;
 using GM.ECSLibrary.Components;
 using GM.ECSLibrary.Systems;
-using GM.SpriteLibrary;
 using GM.SpriteLibrary.UI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 
@@ -40,14 +38,14 @@ namespace Orbital_Simulator
         OptionsData gameOptions;
 
         List<double> previousFramesPerSecond;
+        List<double> previousUpdatesPerSecond;
+        bool showFPS;
 
         List<Entity> orbiters;
 
         SystemsManager manager;
 
-        Thread[] threads;
-
-        ManualResetEvent[] resEvents;
+        bool[] threadsDone;
 
         MouseState currentMouseState;
         MouseState oldMouseState;
@@ -62,6 +60,7 @@ namespace Orbital_Simulator
             IsFixedTimeStep = false;
             IsMouseVisible = true;
             Window.IsBorderless = true;
+            graphics.SynchronizeWithVerticalRetrace = false;
             graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
             graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
         }
@@ -74,21 +73,8 @@ namespace Orbital_Simulator
         /// </summary>
         protected override void Initialize()
         {
-            /*
-            threads = new Thread[8];
-
-            for (int i = 0; i < threads.Length; i++)
-            {
-                threads[i] = new Thread(UpdatePlayingThreaded);
-            }
-
-            resEvents = new ManualResetEvent[8];
-
-            for (int i = 0; i < resEvents.Length; i++)
-            {
-                resEvents[i] = new ManualResetEvent(false);
-            }
-            */
+            // Defaults all elements to false
+            threadsDone = new bool[8];
 
             gameOptions = OptionsData.LoadDataFromFile("options.xml");
 
@@ -102,6 +88,8 @@ namespace Orbital_Simulator
             currentScreen = GameScreen.MainMenu;
 
             previousFramesPerSecond = new List<double>();
+            previousUpdatesPerSecond = new List<double>();
+            showFPS = false;
 
 
             base.Initialize();
@@ -130,6 +118,18 @@ namespace Orbital_Simulator
                 newOrbiter.GetComponent<PositionComponent>().Position = new Vector2(rndGen.Next(0, GraphicsDevice.Viewport.Width), rndGen.Next(0, GraphicsDevice.Viewport.Height));
 
                 newOrbiter.GetComponent<SpriteComponent>().Texture = orbiterTexture;
+
+                // TODO: Add a better way of doing this in the future. (options to select color and set the percentage of orbiters each color will be
+                /*
+                if (i % 2 == 1)
+                {
+                    newOrbiter.GetComponent<SpriteComponent>().SpriteColor = Color.Green;
+                }
+                else
+                {
+                    newOrbiter.GetComponent<SpriteComponent>().SpriteColor = Color.Purple;
+                }
+                */
 
                 orbiters.Add(newOrbiter);
             }
@@ -286,6 +286,11 @@ namespace Orbital_Simulator
                 oldKeyboardState = currentKeyboardState;
             }
 
+            if (currentKeyboardState.IsKeyDown(Keys.OemTilde) && oldKeyboardState.IsKeyUp(Keys.OemTilde))
+            {
+                showFPS = !showFPS;
+            }
+
             if (currentScreen == GameScreen.MainMenu)
             {
                 UpdateMainMenu(gameTime);
@@ -305,6 +310,14 @@ namespace Orbital_Simulator
 
             oldMouseState = currentMouseState;
             oldKeyboardState = currentKeyboardState;
+
+            if (previousUpdatesPerSecond.Count >= 10)
+            {
+                previousUpdatesPerSecond.RemoveAt(0);
+            }
+
+            // For some reason this stops at 0.5 and doesn't go higher...
+            previousUpdatesPerSecond.Add(1 / gameTime.ElapsedGameTime.TotalSeconds);
 
             base.Update(gameTime);
         }
@@ -348,124 +361,54 @@ namespace Orbital_Simulator
                 return;
             }
 
-            manager.Update(orbiters);
+            //manager.Update(gameTime, orbiters);
 
-            /*
+
+
+
+
+
+
+            
+            
             int usedIndexes = 0;
-            int orbitersPerThread = gameOptions.OrbiterCount / threads.Length;
-            for (int i = 0; i < threads.Length; i++)
+            int orbitersPerThread = gameOptions.OrbiterCount / threadsDone.Length;
+            for (int i = 0; i < threadsDone.Length; i++)
             {
-                if (i == threads.Length - 1)
+                if (i == threadsDone.Length - 1)
                 {
-                    //threads[i].Start(new ThreadItems(gameTime, usedIndexes, gameOptions.OrbiterCount - usedIndexes - 1));
-                    ThreadPool.QueueUserWorkItem(UpdatePlayingThreaded, new ThreadItems(gameTime, usedIndexes, gameOptions.OrbiterCount - usedIndexes - 1));
+                    ThreadPool.QueueUserWorkItem(UpdatePlayingThreaded, new ThreadItems(gameTime, i * orbitersPerThread, gameOptions.OrbiterCount - usedIndexes));
                 }
+                else
+                {
+                    usedIndexes += orbitersPerThread;
 
-                usedIndexes += orbitersPerThread;
-                //threads[i].Start(new ThreadItems(gameTime, i * orbitersPerThread, i * orbitersPerThread + orbitersPerThread - 1));
-                ThreadPool.QueueUserWorkItem(UpdatePlayingThreaded, new ThreadItems(gameTime, i * orbitersPerThread, i * orbitersPerThread + orbitersPerThread - 1));
+                    ThreadPool.QueueUserWorkItem(UpdatePlayingThreaded, new ThreadItems(gameTime, i * orbitersPerThread, orbitersPerThread));
+                }
             }
 
-            for (int i = 0; i < threads.Length; i++)
+            // Wait for all of the threads to finish.
+            for (int i = 0; i < threadsDone.Length; i++)
             {
-                //threads[i].Join();
+                while (threadsDone[i] == false)
+                    Thread.Sleep(1);
+                threadsDone[i] = false;
             }
+            
+        }
 
-            foreach (var handle in resEvents)
-                handle.WaitOne();
-            */
+        public void UpdatePlayingThreaded(object data)
+        {
+            ThreadItems items = (ThreadItems)data;
+
+
+            manager.Update(items.TheGameTime, orbiters.GetRange(items.StartIndex, items.ItemCount));
+
+            // TODO: Exception devide by zero when there is only one (or two) orbiter
+            threadsDone[items.StartIndex / (gameOptions.OrbiterCount / threadsDone.Length)] = true;
         }
 
         /*
-        private void UpdatePlayingThreaded(object stuff)
-        {
-            Random rndGen1 = new Random();
-
-            ThreadItems items = (ThreadItems)stuff;
-            GameTime gameTime = items.TheGameTime;
-            int startIndex = items.StartIndex;
-            int endIndex = items.EndIndex;
-
-            int orbitersPerThread = gameOptions.OrbiterCount / threads.Length;
-
-            int resEventIndex = startIndex / orbitersPerThread;
-
-            resEvents[resEventIndex].Reset();
-
-            // If the game window is the current active window
-            if (IsActive)
-            {
-                if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || (currentKeyboardState.IsKeyDown(Keys.Escape) && oldKeyboardState.IsKeyUp(Keys.Escape)))
-                {
-                    StopGame();
-                    resEvents[resEventIndex].Set();
-                    return;
-                }
-
-                if (currentKeyboardState.IsKeyDown(Keys.Space) && oldKeyboardState.IsKeyUp(Keys.Space))
-                {
-                    currentScreen = GameScreen.Paused;
-                    resEvents[resEventIndex].Set();
-                    return;
-                }
-
-                //DoBuddySystem();
-
-                for (int i = startIndex; i <= endIndex; i++)
-                {
-                    MoveableSprite orbiter = orbiters[i];
-
-                    if (currentMouseState.LeftButton == ButtonState.Pressed)
-                    {
-                        if (Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()) < 20)
-                        {
-                            orbiter.SetVelocity(Vector2.Zero);
-                        }
-                        else
-                        {
-                            orbiter.SetSpeedAndDirection(Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()) / 3, currentMouseState.Position.ToVector2());
-                        }
-                    }
-                    else if (currentMouseState.RightButton == ButtonState.Pressed)
-                    {
-                        orbiter.Accelerate(rndGen1.NextDouble() * 3, rndGen1.NextDouble() * 360);
-                    }
-                    else
-                    {
-                        // Slow the orbiter down (by 2%??) if the mouse hasn't moved since the last update
-                        if (oldMouseState.Position.Equals(currentMouseState.Position))
-                        {
-                            orbiter.Accelerate(-(orbiter.GetVelocity().Length() / 50), orbiter.GetDirectionAngle());
-                        }
-
-                        // Massive lag box here
-                        if (gameOptions.OrbiterOrbiter)
-                        {
-                            foreach (var j in orbiters)
-                            {
-                                if (orbiter == j)
-                                {
-                                    continue;
-                                }
-
-                                orbiter.Accelerate(0.05, j.GetPosition());
-                            }
-                        }
-
-                        orbiter.Accelerate(0.5, currentMouseState.Position.ToVector2());
-                        //orbiter.Accelerate(3 / Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()), currentMouseState.Position.ToVector2());
-                        //orbiter.Accelerate(Vector2.Distance(orbiter.GetPosition(), currentMouseState.Position.ToVector2()) / 100, currentMouseState.Position.ToVector2());
-                    }
-
-                    orbiter.MoveWithVelocity();
-
-                    orbiter.KeepWithin(new Rectangle(0, 0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height));
-                }
-            }
-
-            resEvents[resEventIndex].Set();
-        }
-
         private void DoBuddySystem()
         {
             if (gameOptions.BuddySystem)
@@ -553,9 +496,14 @@ namespace Orbital_Simulator
             // For some reason this stops at 0.5 and doesn't go higher...
             previousFramesPerSecond.Add(1 / gameTime.ElapsedGameTime.TotalSeconds);
 
-            int averageFPS = (int)previousFramesPerSecond.Average();
+            if (showFPS)
+            {
+                int averageFPS = (int)previousFramesPerSecond.Average();
+                int averageUPS = (int)previousUpdatesPerSecond.Average();
 
-            spriteBatch.DrawString(aFont, averageFPS.ToString(), Vector2.Zero, Color.LightGray);
+                spriteBatch.DrawString(aFont, averageFPS.ToString(), Vector2.Zero, Color.LightGray);
+                spriteBatch.DrawString(aFont, averageUPS.ToString(), new Vector2(50, 0), Color.LightGray);
+            }
 
             spriteBatch.End();
 
@@ -570,12 +518,12 @@ public class ThreadItems
 
     public int StartIndex { get; set; }
 
-    public int EndIndex { get; set; }
+    public int ItemCount { get; set; }
 
-    public ThreadItems(GameTime theTime, int start, int end)
+    public ThreadItems(GameTime theTime, int start, int count)
     {
         TheGameTime = theTime;
         StartIndex = start;
-        EndIndex = end;
+        ItemCount = count;
     }
 }
